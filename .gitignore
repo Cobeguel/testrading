@@ -128,5 +128,10 @@ dmypy.json
 # Pyre type checker
 .pyre/
 
-# Hide all secrets files
+# Secrets files
 *secrets.yml
+*secrets.yaml
+*secrets.toml
+
+# Secret folder
+*secrets/

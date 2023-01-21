@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 from ksuid import Ksuid
 from datetime import datetime
+from decimal import Decimal
 
 
 @dataclass
@@ -12,36 +13,36 @@ class provider:
 
 @dataclass
 class ohlcv:
-	_id: str = str(Ksuid())
+	row_name: str = str(Ksuid())
 	create_time: datetime = datetime.now()
 	provider: str = ""
 	symbol: str = ""
 	time: datetime = datetime.now()
-	open: float = 0.0
-	high: float = 0.0
-	low: float = 0.0
-	close: float = 0.0
-	volume: float = 0.0
+	open: Decimal = Decimal()
+	high: Decimal = Decimal()
+	low: Decimal = Decimal()
+	close: Decimal = Decimal()
+	volume: Decimal = Decimal()
 
 
 @dataclass
 class tick:
-	_id: str = str(Ksuid())
+	row_name: str = str(Ksuid())
 	create_time: datetime = datetime.now()
 	provider: str = ""
 	symbol: str = ""
 	time: datetime = datetime.now()
-	bid: float = 0.0
-	ask: float = 0.0
-	volume: float = 0.0
+	bid: Decimal = Decimal()
+	ask: Decimal = Decimal()
+	volume: Decimal = Decimal()
 
 
 @dataclass
-class tades:
-	_id: str = str(Ksuid())
+class trades:
+	row_name: str = str(Ksuid())
 	create_time: datetime = datetime.now()
 	provider: str = ""
 	symbol: str = ""
 	time: datetime = datetime.now()
-	price: float = 0.0
-	quantity: float = 0.0
+	price: Decimal = Decimal()
+	quantity: Decimal = Decimal()

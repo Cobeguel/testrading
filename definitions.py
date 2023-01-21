@@ -7,4 +7,4 @@ def generate_path(relative: str) -> str:
 	return os.path.join(ROOT_DIR, relative)
 
 
-DB_CONFIG_FILE = generate_path('config/database_secrets.yml')
+DB_CONFIG_FILE = generate_path('config/database.yml')

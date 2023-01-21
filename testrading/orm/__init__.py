@@ -1,4 +1,4 @@
 from testrading.orm import connector
-from testrading.orm import mapping
+from testrading.orm import mapper
 
-__all__ = ['connector', 'mapping']
+__all__ = ['connector', 'mapper']
