@@ -5,44 +5,85 @@ from decimal import Decimal
 
 
 @dataclass
-class provider:
-	_id: str = str(Ksuid())
-	create_time: datetime = datetime.now()
-	name: str = ""
+class Provider:
+    _id: str = str(Ksuid())
+    create_time: datetime = datetime.now()
+    name: str = ""
+    last_version: str = ""
+
+    def __post_init__(self):
+        self._id = str(Ksuid())
+        self.create_time = datetime.now()
 
 
 @dataclass
-class ohlcv:
-	row_name: str = str(Ksuid())
-	create_time: datetime = datetime.now()
-	provider: str = ""
-	symbol: str = ""
-	time: datetime = datetime.now()
-	open: Decimal = Decimal()
-	high: Decimal = Decimal()
-	low: Decimal = Decimal()
-	close: Decimal = Decimal()
-	volume: Decimal = Decimal()
+class Asset:
+    _id: str = str(Ksuid())
+    create_time: datetime = datetime.now()
+    name: str = ""
+    last_version: str = ""
+
+    def __post_init__(self):
+        self._id = str(Ksuid())
+        self.create_time = datetime.now()
 
 
 @dataclass
-class tick:
-	row_name: str = str(Ksuid())
-	create_time: datetime = datetime.now()
-	provider: str = ""
-	symbol: str = ""
-	time: datetime = datetime.now()
-	bid: Decimal = Decimal()
-	ask: Decimal = Decimal()
-	volume: Decimal = Decimal()
+class Symbol:
+    _id: str = str(Ksuid())
+    create_time: datetime = datetime.now()
+    name: str = ""
+    last_version: str = ""
+
+    def __post_init__(self):
+        self._id = str(Ksuid())
+        self.create_time = datetime.now()
 
 
 @dataclass
-class trades:
-	row_name: str = str(Ksuid())
-	create_time: datetime = datetime.now()
-	provider: str = ""
-	symbol: str = ""
-	time: datetime = datetime.now()
-	price: Decimal = Decimal()
-	quantity: Decimal = Decimal()
+class OHLCV:
+    _id: str = str(Ksuid())
+    create_time: datetime = datetime.now()
+    provider: str = ""
+    asset: str = ""
+    symbol: str = ""
+    resolution: int = 0
+    time: datetime = datetime.now()
+    open: Decimal = Decimal()
+    high: Decimal = Decimal()
+    low: Decimal = Decimal()
+    close: Decimal = Decimal()
+    volume: Decimal = Decimal()
+
+    def __post_init__(self):
+        self._id = str(Ksuid())
+
+
+@dataclass
+class Tick:
+    _id: str = str(Ksuid())
+    create_time: datetime = datetime.now()
+    provider: str = ""
+    asset: str = ""
+    symbol: str = ""
+    time: datetime = datetime.now()
+    bid: Decimal = Decimal()
+    ask: Decimal = Decimal()
+    volume: Decimal = Decimal()
+
+    def __post_init__(self):
+        self._id = str(Ksuid())
+
+
+@dataclass
+class Trades:
+    _id: str = str(Ksuid())
+    create_time: datetime = datetime.now()
+    provider: str = ""
+    symbol: str = ""
+    time: datetime = datetime.now()
+    price: Decimal = Decimal()
+    quantity: Decimal = Decimal()
+
+    def __post_init__(self):
+        self._id = str(Ksuid())
