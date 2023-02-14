@@ -102,6 +102,9 @@ class AlchemyConn(metaclass=Singleton):
     def get_conn(self):
         return self.engine.connect()
 
+    def get_conn_stream(self):
+        return self.engine.connect().execution_options(stream_results=True)
+
     def get_session(self):
         return Session(bind=self.engine)
 
