@@ -68,6 +68,7 @@ class DBCredentials:
 
 def start_mappers(register: registry):
     register.map_imperatively(financial.OHLCV, mapper.map_table_ohlc(register, 'ohlcv'))
+    register.map_imperatively(financial.Tick, mapper.map_table_tick(register, 'tick'))
     register.map_imperatively(financial.Provider, mapper.map_table_provider(register, 'providers'))
     register.map_imperatively(financial.Asset, mapper.map_table_asset(register, 'assets'))
     return register

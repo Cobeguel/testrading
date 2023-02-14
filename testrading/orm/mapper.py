@@ -44,6 +44,23 @@ def map_table_ohlc(register: registry, table_name: str) -> Table:
 
 
 # yapf: disable
+def map_table_tick(register: registry, table_name: str) -> Table:
+    return Table(
+        table_name,
+        register.metadata, Column('id', Text, primary_key=True, nullable=False, key= '_id'),
+        Column('create_time', DateTime, nullable=False),
+        Column('provider', Text, nullable=False),
+        Column('asset', Text, nullable=False),
+        Column('symbol', Text, nullable=False),
+        Column('datetime', DateTime, nullable=False, key='time'),
+        Column('ask', Numeric(18, 8), nullable=False),
+        Column('bid', Numeric(18, 8), nullable=False),
+        Column('volume', Numeric(18, 8), server_default='0')
+    )
+# yapf: enable
+
+
+# yapf: disable
 def map_table_provider(register: registry, table_name: str) -> Table:
     return Table(
         table_name,
