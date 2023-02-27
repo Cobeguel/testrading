@@ -41,8 +41,7 @@ class DataManagerRender():
                     st.error("Provider name cannot be empty", icon="🚨")
                 else:
                     with repo.db().get_session() as sess:
-                        db_provider = sess.query(
-                            financial.Provider).filter(financial.Provider.name == provider_name).all()
+                        db_provider = sess.query(financial.Provider).filter(financial.Provider.name == provider_name).all()
                         if len(db_provider) != 0:
                             st.error(f'Provider: {provider_name} already exists', icon="🚨")
                         else:
@@ -71,6 +70,7 @@ class DataManagerRender():
                             asset = financial.Asset(name=asset_name)
                             sess.add(asset)
                             sess.commit()
+                            st.experimental_rerun()
                             #st.success(f'Market: {market_name} have been created!', icon="✅")
 
         st.markdown("## Upload data")
@@ -81,7 +81,7 @@ class DataManagerRender():
         providers = ['']
         with repo.db().get_session() as sess:
             providers = [provider.name for provider in sess.query(financial.Provider).all()]
-        data_type = col1.radio("Data type", ('OHLCV', 'Tick', 'Trades'))
+        data_type = col1.radio("Data type", ('OHLCV', 'Tick'))
         provider_select = col1.selectbox('Select provider', providers)
         symbol = col1.text_input('Symbol', placeholder='symbol')
         assets = ['']
@@ -102,10 +102,6 @@ class DataManagerRender():
         elif data_type == 'Tick':
             time_mapper, ask_mapper, bid_mapper, volume_mapper = st.columns(4)
             time_col = ask_col = bid_col = volume_col = ""
-        elif data_type == 'Trades':
-            # TODO Adjust to trade dataset model
-            time_mapper, price_mapper, volume_mapper = st.columns(3)
-            time_col = price_col = volume_col = ""
         data = None
 
         if uploaded_file is not None:
@@ -142,15 +138,6 @@ class DataManagerRender():
                     bid_col = bid_mapper.selectbox("Bid", map_options, index=2)
                     if len(map_options) > 3:
                         volume_col = volume_mapper.selectbox("Volume", map_options, index=3)
-            if data_type == 'Trades':
-                if len(map_options) < 2:
-                    st.error("File must have at least time and price columns", icon="🚨")
-                    st.stop()
-                else:
-                    time_col = time_mapper.selectbox("Time", map_options, index=0)
-                    price_col = price_mapper.selectbox("Price", map_options, index=1)
-                    if len(map_options) > 2:
-                        volume_col = volume_mapper.selectbox("Volume", map_options, index=2)
 
         submit_button = st.button(label="Upload")
         if submit_button:
@@ -170,7 +157,6 @@ class DataManagerRender():
                     st.error("Symbol is empty", icon="🚨")
                     st.stop()
                 elif data_type == 'OHLCV':
-                    print("Ha entrado en OHLCV con: ", data_type)
                     if time_col == "" or open_col == "" or high_col == "" or low_col == "" or close_col == "":
                         st.error("Column mapper is incomplete", icon="🚨")
                         st.stop()
@@ -178,33 +164,22 @@ class DataManagerRender():
                     if time_col == "" or ask_col == "" or bid_col == "":
                         st.error("Column mapper is incomplete", icon="🚨")
                         st.stop()
-                elif data_type == 'Trades':
-                    if time_col == "" or price_col == "":
-                        st.error("Column mapper is incomplete", icon="🚨")
-                        st.stop()
 
                 csv_header = header if header != 0 else None
                 if data_type == 'OHLCV':
-                    data = data.rename(
-                        columns={
-                            time_col: "datetime",
-                            open_col: "open",
-                            high_col: "high",
-                            low_col: "low",
-                            close_col: "close",
-                            volume_col: "volume",
-                        })
+                    data = data.rename(columns={
+                        time_col: "datetime",
+                        open_col: "open",
+                        high_col: "high",
+                        low_col: "low",
+                        close_col: "close",
+                        volume_col: "volume",
+                    })
                 elif data_type == 'Tick':
                     data = data.rename(columns={
                         time_col: "datetime",
                         ask_col: "ask",
                         bid_col: "bid",
-                        volume_col: "volume",
-                    })
-                elif data_type == 'Trades':
-                    data = data.rename(columns={
-                        time_col: "datetime",
-                        price_col: "price",
                         volume_col: "volume",
                     })
 
@@ -215,8 +190,7 @@ class DataManagerRender():
                 data['provider'] = provider_select.upper()
                 data['symbol'] = symbol.upper()
                 if data_type == 'OHLCV':
-                    data['resolution'] = data['datetime'].diff().dt.total_seconds().value_counts().nlargest(
-                        1).index.astype(int)[0]
+                    data['resolution'] = data['datetime'].diff().dt.total_seconds().value_counts().nlargest(1).index.astype(int)[0]
                 data['create_time'] = datetime.datetime.now()
 
                 with repo.db().get_conn() as conn:
@@ -224,7 +198,5 @@ class DataManagerRender():
                         data.to_sql('ohlcv', con=conn, if_exists='append', index=False)
                     elif data_type == 'Tick':
                         data.to_sql('tick', con=conn, if_exists='append', index=False)
-                    elif data_type == 'Trades':
-                        data.to_sql('trade', con=conn, if_exists='append', index=False)
 
                 st.success("File uploaded", icon="✅")
