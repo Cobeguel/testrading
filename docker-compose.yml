@@ -1,0 +1,39 @@
+
+services:
+  citus:
+    container_name: citus_dev
+    image: citusdata/citus:postgres_14
+    ports:
+    - "5432:5432"
+    environment:
+    - POSTGRES_DB=${DB_NAME}
+    - POSTGRES_PASSWORD=${DB_PASSWORD}
+    - POSTGRES_USER=${DB_USER}
+
+  postgres:
+    container_name: postgres_dev
+    image: postgres:14
+    ports: 
+    - "5433:5432"
+    environment: 
+    - POSTGRES_DB=${DB_NAME}
+    - POSTGRES_PASSWORD=${DB_PASSWORD}
+    - POSTGRES_USER=${DB_USER}
+
+  redis:
+    container_name: redis
+    image: redis:latest
+    networks:
+    - app-network
+    ports:
+    - "6379:6379"
+    volumes:
+    - redis-data:/data
+
+volumes:
+  db-data:
+  redis-data:
+
+networks:
+  app-network:
+    driver: bridge
