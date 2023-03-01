@@ -110,3 +110,6 @@ class AlchemyConn(metaclass=Singleton):
 
     def get_tables_names(self):
         return self.metadata.tables.keys()
+
+    def get_metadata(self):
+        return self.metadata

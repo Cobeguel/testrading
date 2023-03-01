@@ -2,10 +2,10 @@ import streamlit as st
 import pandas as pd
 import datetime
 
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 from testrading.app.repo import repo
 from testrading.models import financial
 from testrading.app.render import components
-from ksuid import Ksuid
 
 
 class DataManagerRender():
@@ -90,7 +90,7 @@ class DataManagerRender():
         asset = col1.selectbox('Select asset', assets)
 
         # Right column
-        file_separator = col2.text_input("Separator", value=",", max_chars=1)
+        file_separator = col2.text_input("Separator", value=";", max_chars=1)
         header = col2.number_input("Header", min_value=0, value=0)
         date_format = col2.text_input(label="Date format", value="")
 
@@ -103,6 +103,11 @@ class DataManagerRender():
             time_mapper, ask_mapper, bid_mapper, volume_mapper = st.columns(4)
             time_col = ask_col = bid_col = volume_col = ""
         data = None
+        resample = st.checkbox("Rebuild with decreasing samples.",
+                               help="This actions builds the feasible resambles with lower resolution and stores into \
+                                the database. For example, if you have 14 minutes, in a resolution of 1 minute, this action \
+                                will create a dataset with 2 candlestick of 5 minutes (from minute 1 to 10) but will stop \
+                                before reaching to the resolution of 15 minutes.")
 
         if uploaded_file is not None:
             try:
@@ -140,6 +145,8 @@ class DataManagerRender():
                         volume_col = volume_mapper.selectbox("Volume", map_options, index=3)
 
         submit_button = st.button(label="Upload")
+        if data_type == 'Tick':
+            st.info("Tick data will be resampled to 5s OHLCV using bid", icon="ℹ️")
         if submit_button:
             if uploaded_file is None:
                 st.error("File not found", icon="🚨")
@@ -168,7 +175,7 @@ class DataManagerRender():
                 csv_header = header if header != 0 else None
                 if data_type == 'OHLCV':
                     data = data.rename(columns={
-                        time_col: "datetime",
+                        time_col: "ts_datetime",
                         open_col: "open",
                         high_col: "high",
                         low_col: "low",
@@ -177,26 +184,72 @@ class DataManagerRender():
                     })
                 elif data_type == 'Tick':
                     data = data.rename(columns={
-                        time_col: "datetime",
+                        time_col: "ts_datetime",
                         ask_col: "ask",
                         bid_col: "bid",
                         volume_col: "volume",
                     })
 
-                data['datetime'] = pd.to_datetime(data['datetime'])
-                data = data.sort_values(by='datetime')
-                data['id'] = [str(Ksuid()) for _ in range(len(data.index))]
+                data['ts_datetime'] = pd.to_datetime(data['ts_datetime'])
+                data = data.sort_values(by='ts_datetime')
+                if data_type == 'Tick':
+                    data = data.resample('5s', on='ts_datetime').agg({'bid': ['first', 'max', 'min', 'last'], 'volume': ['sum']}).ffill()
+                    data.columns = ['open', 'high', 'low', 'close', 'volume']
+                    data['resolution'] = 5
+                if data_type == 'OHLCV':
+                    data['resolution'] = data['ts_datetime'].diff().dt.total_seconds().value_counts().nlargest(1).index.astype(int)[0]
+                    data = data.set_index('ts_datetime')
                 data['asset'] = asset.upper()
                 data['provider'] = provider_select.upper()
                 data['symbol'] = symbol.upper()
-                if data_type == 'OHLCV':
-                    data['resolution'] = data['datetime'].diff().dt.total_seconds().value_counts().nlargest(1).index.astype(int)[0]
-                data['create_time'] = datetime.datetime.now()
 
-                with repo.db().get_conn() as conn:
-                    if data_type == 'OHLCV':
-                        data.to_sql('ohlcv', con=conn, if_exists='append', index=False)
-                    elif data_type == 'Tick':
-                        data.to_sql('tick', con=conn, if_exists='append', index=False)
+                self.save_timeserie(data, resample)
 
                 st.success("File uploaded", icon="✅")
+
+    def save_dataframe_ohlcv_psql(self, data: pd.DataFrame) -> None:
+        with repo.db().get_session() as sess:
+            with sess.begin():
+                data = data.reset_index(names='ts_datetime')
+                insert_stmt = pg_insert(repo.db().get_metadata().tables['ohlcv']).values(data.to_dict(orient='records'))
+                on_conflict_stmt = insert_stmt.on_conflict_do_update(index_elements=['ts_datetime', 'provider', 'asset', 'symbol', 'resolution'],
+                                                                     set_=dict(ts_datetime=insert_stmt.excluded.ts_datetime,
+                                                                               provider=insert_stmt.excluded.provider,
+                                                                               asset=insert_stmt.excluded.asset,
+                                                                               symbol=insert_stmt.excluded.symbol,
+                                                                               resolution=insert_stmt.excluded.resolution,
+                                                                               open=insert_stmt.excluded.open,
+                                                                               high=insert_stmt.excluded.high,
+                                                                               low=insert_stmt.excluded.low,
+                                                                               close=insert_stmt.excluded.close,
+                                                                               volume=insert_stmt.excluded.volume))
+                sess.execute(on_conflict_stmt)
+
+    def save_timeserie(self, data: pd.DataFrame, backward_resample: bool = False) -> None:
+        self.save_dataframe_ohlcv_psql(data)
+
+        resamplable = True
+        resampled_data = data
+        resolution = financial.Resolution.from_seconds(resampled_data['resolution'].iloc[0])
+        while backward_resample and resamplable and (next_resolution := resolution.get_next_resolution()) != None:
+            resample_factor = int(next_resolution.seconds / resolution.seconds)
+            trim = len(data) - len(data) % resample_factor
+            if trim > 0:
+                resampled_data = resampled_data[:trim]
+                resampled_data = data.resample(resolution.get_seconds_pandas_resample()).agg({
+                    'open': 'first',
+                    'high': 'max',
+                    'low': 'min',
+                    'close': 'last',
+                    'volume': 'sum',
+                    'asset': 'first',
+                    'provider': 'first',
+                    'symbol': 'first'
+                }).fillna(method='ffill')
+                resampled_data['resolution'] = resolution.seconds
+                data = resampled_data
+                resolution = next_resolution
+                next_resolution = next_resolution.get_next_resolution()
+                self.save_dataframe_ohlcv_psql(resampled_data)
+            else:
+                resamplable = False
